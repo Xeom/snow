@@ -67,6 +67,7 @@
 #include <setjmp.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <stdarg.h>
 
 #ifdef __MINGW32__
 # ifndef SNOW_USE_FNMATCH
@@ -199,6 +200,47 @@ static void _snow_arr_reset(struct _snow_arr *arr) {
 	arr->elems = NULL;
 	arr->length = 0;
 	arr->allocated = 0;
+}
+
+/*
+ * String Builder
+ */
+#define _SNOW_STR_MAX_LEN 1024
+
+struct _snow_str_builder {
+    char *ptr, *end;
+    char buf[_SNOW_STR_MAX_LEN];
+};
+
+__attribute__((unused))
+void _snow_str_builder_init(struct _snow_str_builder *bldr) {
+    bldr->buf[0] = '\0';
+    bldr->end = &(bldr->buf[_SNOW_STR_MAX_LEN]);
+    bldr->ptr = &(bldr->buf[0]);
+}
+
+__attribute__((unused))
+void _snow_str_build(struct _snow_str_builder *bldr, const char *fmt, ...) {
+    va_list args;
+    size_t space;
+    int    n;
+
+    space = bldr->end - bldr->ptr;
+
+    if (space == 0)
+        return;
+
+    va_start(args, fmt);
+    n = vsnprintf(bldr->ptr, space, fmt, args);
+    va_end(args);
+
+    if (n >= space || n < 0) {
+        bldr->ptr = bldr->end;
+        *bldr->end = '\0';
+    }
+    else {
+        bldr->ptr += n;
+    }
 }
 
 /*
