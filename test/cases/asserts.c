@@ -42,12 +42,13 @@ describe(asserteq_str) {
 describe(asserteq_buf) {
 	int buf1[] = { 0, 2, 3, 1 };
 	int buf2[] = { 2, 2, 1, 104 };
-	size_t len = 4;
+	size_t len = sizeof(buf1);
 
 	test("eq failure") { asserteq_buf(buf1, buf2, len); }
 	test("eq success") { asserteq_buf(buf1, buf1, len); }
 	test("neq success") { assertneq_buf(buf1, buf2, len); }
 	test("neq failure") { assertneq_buf(buf1, buf1, len); }
+	test("eq failure") { asserteq_buf(buf1, buf2, 4); }
 }
 
 describe(asserteq) {

@@ -1280,12 +1280,12 @@ cleanup:
 		int eq = (a) == (b); \
 		if (!eq && !invert) \
 			_snow_fail_expl(explanation, \
-				"(" #name ") Expected %s to equal %s, but got " pattern, \
-				astr, bstr, a); \
+				"(" #name ") Expected %s (" pattern ") to equal %s (" pattern ")", \
+				astr, a, bstr, b); \
 		else if (eq && invert) \
 			_snow_fail_expl(explanation, \
-				"(" #name ") Expected %s to not equal %s (" pattern ")", \
-				astr, bstr, a); \
+				"(" #name ") Expected %s (" pattern ") to not equal %s (" pattern ")", \
+				astr, a, bstr, b); \
 		return 0; \
 	}
 _snow_define_assertfunc(int, intmax_t, "%ji")
@@ -1309,6 +1309,82 @@ static int _snow_assert_str(
 	return 0;
 }
 
+const _snow_buf_line_len      = 8;
+const _snow_buf_diff_maxlines = 8;
+
+void _snow_build_buf_line(
+        struct _snow_str_builder *bldr,
+        const unsigned char *a, const unsigned char *b,
+        size_t off, size_t size, int cmp)
+{
+    size_t len, ind;
+    len = size - off;
+    if (len > _snow_buf_line_len)
+        len = _snow_buf_line_len;
+
+    for (ind = 0; ind < _snow_buf_line_len; ++ind)
+    {
+        if (ind % 2 == 0 && ind != 0)
+            _snow_str_build(bldr, " ", a[off + ind]);
+
+        if (ind > len)
+        {
+            _snow_str_build(bldr, cmp ? ("  "):("--"));
+        }
+        else
+        {
+            if (cmp)
+                _snow_str_build(bldr, (a[off + ind] == b[off + ind]) ? ("  ") : ("^^"));
+            else
+                _snow_str_build(bldr, "%02hx", a[off + ind]);
+        }
+    }
+}
+
+void _snow_build_buf_cmp_line(
+        struct _snow_str_builder *bldr,
+        const unsigned char *a, const unsigned char *b, size_t off, size_t size)
+{
+    _snow_str_build(bldr, "%08x: ", off);
+    _snow_build_buf_line(bldr, a, b, off, size, 0);
+    _snow_str_build(bldr, "|");
+    _snow_build_buf_line(bldr, b, a, off, size, 0);
+    _snow_str_build(bldr, "\n          ");
+    _snow_build_buf_line(bldr, a, b, off, size, 1);
+    _snow_str_build(bldr, "'");
+    _snow_build_buf_line(bldr, b, a, off, size, 1);
+    _snow_str_build(bldr, "\n");
+
+    return bldr;
+}
+
+void _snow_build_buf_diff(
+        struct _snow_str_builder *bldr,
+        const unsigned char *a, const unsigned char *b, size_t size)
+{
+    int cnt;
+    size_t off;
+    cnt = 0;
+
+    for (off = 0; off < size; off += _snow_buf_line_len) {
+        size_t n;
+        n = size - off;
+        if (n > _snow_buf_line_len)
+            n = _snow_buf_line_len;
+
+        if (memcmp(&a[off], &b[off], n) != 0) {
+            _snow_build_buf_cmp_line(bldr, a, b, off, size);
+            cnt += 1;
+        }
+
+        if (cnt >= _snow_buf_diff_maxlines) {
+            _snow_str_build(bldr, " ... and more.\n");
+            break;
+        }
+    }
+    _snow_str_build(bldr, "Differences are shown");
+}
+
 __attribute__((unused))
 static int _snow_assert_buf(
 		int invert, const char *explanation,
@@ -1316,8 +1392,11 @@ static int _snow_assert_buf(
 {
 	int eq = memcmp(a, b, size) == 0;
 	if (!eq && !invert) {
-		_snow_fail_expl(explanation, "(buf) Expected %s to equal %s", \
-			astr, bstr);
+        struct _snow_str_builder bldr;
+        _snow_str_builder_init(&bldr);
+        _snow_build_buf_diff(&bldr, a, b, size);
+		_snow_fail_expl(explanation, "(buf) Expected %s to equal %s:\n%s", \
+			astr, bstr, bldr.buf);
 	} else if (eq && invert) {
 		_snow_fail_expl(explanation, "(buf) Expected %s to not equal %s",
 			astr, bstr);
@@ -1340,6 +1419,8 @@ static int _snow_assert_fake(int invert, ...) {
 		double: _snow_assert_dbl, \
 		long double: _snow_assert_dbl, \
 		void *: _snow_assert_ptr, \
+		int  *: _snow_assert_ptr, \
+		long *: _snow_assert_ptr, \
 		char *: _snow_assert_str, \
 		int: _snow_assert_int, \
 		long long: _snow_assert_int, \
@@ -1353,6 +1434,8 @@ static int _snow_assert_fake(int invert, ...) {
 		double: _snow_assert_dbl, \
 		long double: _snow_assert_dbl, \
 		void *: _snow_assert_ptr, \
+		int  *: _snow_assert_ptr, \
+		long *: _snow_assert_ptr, \
 		char *: _snow_assert_str, \
 		int: _snow_assert_int, \
 		long long: _snow_assert_int, \
