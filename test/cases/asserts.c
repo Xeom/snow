@@ -48,7 +48,6 @@ describe(asserteq_buf) {
 	test("eq success") { asserteq_buf(buf1, buf1, len); }
 	test("neq success") { assertneq_buf(buf1, buf2, len); }
 	test("neq failure") { assertneq_buf(buf1, buf1, len); }
-	test("eq failure") { asserteq_buf(buf1, buf2, 4); }
 }
 
 describe(asserteq) {
@@ -71,12 +70,12 @@ describe(asserteq) {
 	char str1[] = "hello";
 	char str2[] = "world";
 	test("eq success") { asserteq(str1, str1); }
-	test("eq success") { asserteq(str1, str2); }
+	test("eq failure") { asserteq(str1, str2); }
 
 	void *vptr1 = NULL;
 	void *vptr2 = (void *)0x10;
 	test("eq success") { asserteq(vptr1, vptr1); }
-	test("eq success") { asserteq(vptr1, vptr2); }
+	test("eq failure") { asserteq(vptr1, vptr2); }
 }
 
 describe(assertneq) {
@@ -98,13 +97,13 @@ describe(assertneq) {
 
 	char str1[] = "hello";
 	char str2[] = "world";
-	test("eq success") { assertneq(str1, str1); }
-	test("eq success") { assertneq(str1, str2); }
+	test("neq failure") { assertneq(str1, str1); }
+	test("neq success") { assertneq(str1, str2); }
 
 	void *vptr1 = NULL;
 	void *vptr2 = (void *)0x10;
-	test("eq success") { assertneq(vptr1, vptr1); }
-	test("eq success") { assertneq(vptr1, vptr2); }
+	test("neq failure") { assertneq(vptr1, vptr1); }
+	test("neq success") { assertneq(vptr1, vptr2); }
 }
 
 snow_main();
