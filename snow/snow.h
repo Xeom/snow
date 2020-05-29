@@ -213,14 +213,14 @@ struct _snow_str_builder {
 };
 
 __attribute__((unused))
-void _snow_str_builder_init(struct _snow_str_builder *bldr) {
+static void _snow_str_builder_init(struct _snow_str_builder *bldr) {
     bldr->buf[0] = '\0';
     bldr->end = &(bldr->buf[_SNOW_STR_MAX_LEN]);
     bldr->ptr = &(bldr->buf[0]);
 }
 
 __attribute__((unused))
-void _snow_str_build(struct _snow_str_builder *bldr, const char *fmt, ...) {
+static void _snow_str_build(struct _snow_str_builder *bldr, const char *fmt, ...) {
     va_list args;
     size_t space;
     int    n;
@@ -1309,10 +1309,10 @@ static int _snow_assert_str(
 	return 0;
 }
 
-const _snow_buf_line_len      = 8;
-const _snow_buf_diff_maxlines = 8;
+#define _snow_buf_line_len      8
+#define _snow_buf_diff_maxlines 8
 
-void _snow_build_buf_line(
+static void _snow_build_buf_line(
         struct _snow_str_builder *bldr,
         const unsigned char *a, const unsigned char *b,
         size_t off, size_t size, int cmp)
@@ -1341,7 +1341,7 @@ void _snow_build_buf_line(
     }
 }
 
-void _snow_build_buf_cmp_line(
+static void _snow_build_buf_cmp_line(
         struct _snow_str_builder *bldr,
         const unsigned char *a, const unsigned char *b, size_t off, size_t size)
 {
@@ -1358,7 +1358,7 @@ void _snow_build_buf_cmp_line(
     return bldr;
 }
 
-void _snow_build_buf_diff(
+static void _snow_build_buf_diff(
         struct _snow_str_builder *bldr,
         const unsigned char *a, const unsigned char *b, size_t size)
 {
