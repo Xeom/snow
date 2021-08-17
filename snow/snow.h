@@ -1317,41 +1317,104 @@ cleanup:
  * Various assert functions
  */
 
+__attribute__((unused))
+static void _snow_fail_eq_msg_expr(
+        struct _snow_str *msg, const char *expr, const char *val)
+{
+    if (strcmp(expr, val) == 0)
+        _snow_str_fmt(msg, " %s", expr);
+    else
+        _snow_str_fmt(msg, " %s (%s)", expr, val);
+}
+
+__attribute__((unused))
+static void _snow_fail_eq(
+        int invert, const char *explanation, const char *name,
+        struct _snow_str *aval, const char *aexpr,
+        struct _snow_str *bval, const char *bexpr) {
+
+    /* Add elipses to the strings if they're too long. */
+    _snow_str_elipsis(aval, 64); _snow_str_elipsis(bval, 64);
+
+    struct _snow_str msg;
+    _snow_str_init(&msg);
+    _snow_str_fmt(&msg, "Expected");
+
+    _snow_fail_eq_msg_expr(&msg, aexpr, _snow_str_get(aval));
+    _snow_str_fmt(&msg, " %s", invert ? "to not equal" : "to equal");
+    _snow_fail_eq_msg_expr(&msg, bexpr, _snow_str_get(bval));
+
+    /* Free our value strings. */
+    _snow_str_reset(aval);
+    _snow_str_reset(bval);
+
+    /* Put our fail message onto the stack. */
+    _snow_str_to_stack(&msg, msgbuf);
+    _snow_fail_expl(explanation, "(%s) %s", name, msgbuf);
+}
+
 #define _snow_define_assertfunc(name, type, pattern) \
 	__attribute__((unused)) \
 	static int _snow_assert_##name( \
 			int invert, const char *explanation, \
 			const type a, const char *astr, const type b, const char *bstr) { \
+        struct _snow_str aval, bval; \
+        _snow_str_init(&aval); \
+        _snow_str_init(&bval); \
+        _snow_str_fmt(&aval, pattern, a); \
+        _snow_str_fmt(&bval, pattern, b); \
 		int eq = (a) == (b); \
-		if (!eq && !invert) \
-			_snow_fail_expl(explanation, \
-				"(" #name ") Expected %s to equal %s, but got " pattern, \
-				astr, bstr, a); \
-		else if (eq && invert) \
-			_snow_fail_expl(explanation, \
-				"(" #name ") Expected %s to not equal %s (" pattern ")", \
-				astr, bstr, a); \
+		if ((!eq && !invert) || (eq && invert)) \
+            _snow_fail_eq( \
+                invert, explanation, #name, &aval, astr, &bval, bstr); \
 		return 0; \
 	}
 _snow_define_assertfunc(int, intmax_t, "%ji")
 _snow_define_assertfunc(uint, uintmax_t, "%ju")
-_snow_define_assertfunc(dbl, long double, "%Lg")
+_snow_define_assertfunc(dbl, long double, "%Lf")
 _snow_define_assertfunc(ptr, void *, "%p")
+
+__attribute__((unused))
+static void _snow_display_str(struct _snow_str *msg, const char *str) {
+    for (; *str; ++str) {
+        unsigned char c = (unsigned char)*str;
+        static const char *special[256] = {
+            ['\0'] = "\\0", ['\a'] = "\\a", ['\b'] = "\\b",
+            ['\t'] = "\\t", ['\n'] = "\\n", ['\v'] = "\\v",
+            ['\f'] = "\\f", ['\r'] = "\\r", ['\\'] = "\\\\"
+        };
+        if (special[c]) {
+            _snow_str_fmt(msg, "%s", special[c]);
+        } else if (isprint(c)) {
+            _snow_str_fmt(msg, "%c", c);
+        } else {
+            _snow_str_fmt(msg, "\\x%02x", c);
+        }
+    }
+    _snow_str_refmt(msg, "\"%s\"", _snow_str_get(msg));
+}
 
 __attribute__((unused))
 static int _snow_assert_str(
 		int invert, const char *explanation,
 		const char *a, const char *astr, const char *b, const char *bstr) {
+    struct _snow_str aval, bval;
+    _snow_str_init(&aval);
+    _snow_str_init(&bval);
+    _snow_display_str(&aval, a);
+    _snow_display_str(&bval, b);
 	int eq = strcmp(a, b) == 0;
-	if (!eq && !invert)
-		_snow_fail_expl(explanation,
-			"(str) Expected %s to equal %s, but got \"%s\"",
-			astr, bstr, a);
-	else if (eq && invert)
-		_snow_fail_expl(explanation,
-			"(str) Expected %s to not equal %s (\"%s\")",
-			astr, bstr, a);
+    if ((!eq && !invert) || (eq && invert))
+        _snow_fail_eq(invert, explanation, "str", &aval, astr, &bval, bstr);
 	return 0;
+}
+
+__attribute__((unused))
+static void _snow_display_hex(struct _snow_str *msg, const char *str) {
+    for (; *str; ++str) {
+        unsigned char c = (unsigned char)*str;
+        _snow_str_fmt(msg, "%02x%s", c, str[1] ? ",":"");
+    }
 }
 
 __attribute__((unused))
@@ -1359,14 +1422,15 @@ static int _snow_assert_buf(
 		int invert, const char *explanation,
 		const void *a, const char *astr, const void *b, const char *bstr, size_t size)
 {
+    struct _snow_str aval, bval;
+    _snow_str_init(&aval);
+    _snow_str_init(&bval);
+    _snow_display_hex(&aval, a);
+    _snow_display_hex(&bval, b);
 	int eq = memcmp(a, b, size) == 0;
-	if (!eq && !invert) {
-		_snow_fail_expl(explanation, "(buf) Expected %s to equal %s", \
-			astr, bstr);
-	} else if (eq && invert) {
-		_snow_fail_expl(explanation, "(buf) Expected %s to not equal %s",
-			astr, bstr);
-	}
+    if ((!eq && !invert) || (eq && invert))
+        _snow_fail_eq(
+            invert, explanation, "buf", &aval, astr, &bval, bstr);
 	return 0;
 }
 
