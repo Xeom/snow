@@ -61,6 +61,8 @@
 
 #else
 
+#include <stdarg.h>
+#include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -201,6 +203,85 @@ static void _snow_arr_reset(struct _snow_arr *arr) {
 	arr->elems = NULL;
 	arr->length = 0;
 	arr->allocated = 0;
+}
+
+struct _snow_str {
+    char   *str;
+    size_t  len;
+};
+
+__attribute__((unused))
+static void _snow_str_init(struct _snow_str *str) {
+    str->str = NULL;
+    str->len = 0;
+}
+
+static void _snow_str_reset(struct _snow_str *str) {
+    if (str->str)
+        free(str->str);
+
+    str->str = NULL;
+    str->len = 0;
+}
+
+__attribute__((unused))
+static const char *_snow_str_get(struct _snow_str *str) {
+    return str->str ? str->str : "";
+}
+
+__attribute__((unused))
+static void _snow_str_refmt(struct _snow_str *str, const char *fmt, ...) {
+    va_list va;
+    char    test[1];
+    size_t  nchar;
+    char   *tofree;
+
+    va_start(va, fmt);
+    nchar = (size_t)vsnprintf(test, sizeof(test), fmt, va);
+    va_end(va);
+
+    tofree   = str->str;
+    str->str = malloc(nchar + 1);
+
+    va_start(va, fmt);
+    vsnprintf(str->str, nchar + 1, fmt, va);
+    va_end(va);
+
+    str->len = nchar;
+    free(tofree);
+}
+
+__attribute__((unused))
+static void _snow_str_fmt(struct _snow_str *str, const char *fmt, ...) {
+    va_list va;
+    char    test[1];
+    size_t  nchar;
+
+    va_start(va, fmt);
+    nchar = (size_t)vsnprintf(test, sizeof(test), fmt, va);
+    va_end(va);
+
+    str->str = realloc(str->str, nchar + str->len + 1);
+
+    va_start(va, fmt);
+    vsnprintf(&(str->str[str->len]), nchar + 1, fmt, va);
+    va_end(va);
+
+    str->len += nchar;
+}
+
+#define _snow_str_to_stack(_str, _stack) \
+    char _stack[(_str)->len + 1]; \
+    do { \
+        strcpy(_stack, _snow_str_get(_str)); \
+        _snow_str_reset(_str); \
+    } while (0)
+
+__attribute__((unused))
+static void _snow_str_elipsis(struct _snow_str *str, unsigned len) {
+    if (str->len > len) {
+        strcpy(&(str->str[len - 3]), "...");
+    }
 }
 
 /*
